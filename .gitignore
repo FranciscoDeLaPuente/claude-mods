@@ -1,0 +1,6 @@
+# Tipos que Claude Code genera para desarrollar cada mod
+mods/*/.claude-plugin/types/
+
+node_modules/
+.DS_Store
+Thumbs.db
