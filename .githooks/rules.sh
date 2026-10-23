@@ -4,7 +4,8 @@
 #   rules.sh branch <rama>            comprueba el nombre de una rama
 #   rules.sh message <archivo>        comprueba el mensaje que va a guardar git (hook commit-msg)
 #   rules.sh message --raw <archivo>  comprueba un mensaje ya guardado, tal cual
-#   rules.sh title <título>           comprueba el título de un PR: la primera línea del squash en main
+#   rules.sh title <título> [<sufijo>]  comprueba el título de un PR: la primera línea del squash en main;
+#                                     el sufijo (el " (#N)" que añade GitHub) solo cuenta para la longitud
 #   rules.sh body <archivo>           comprueba la descripción de un PR
 # La firma de Claude solo se rechaza a quien lo pide: git config claude-mods.rejectClaudeSignature true
 # en su clon, o REJECT_CLAUDE_SIGNATURE=true (el workflow, en los PR del propietario del repositorio).
@@ -21,7 +22,7 @@ fail() {
 }
 
 usage() {
-  fail "usage: rules.sh branch <name> | message [--raw] <file> | title <title> | body <file>"
+  fail "usage: rules.sh branch <name> | message [--raw] <file> | title <title> [<suffix>] | body <file>"
 }
 
 types_list() {
@@ -39,7 +40,7 @@ check_branch() {
       "rename it with: git branch -m <new-name>"
 }
 
-# Formato y longitud de una primera línea, sin excepciones
+# Formato y longitud de una primera línea, sin excepciones; la longitud se mide sobre $2 si se da
 check_subject() {
   printf '%s\n' "$1" | grep -Eq "^($TYPES)(\([a-z0-9]+(-[a-z0-9]+)*\))?!?: [^ ]" ||
     fail "the first line does not follow Conventional Commits: $1" \
@@ -47,7 +48,7 @@ check_subject() {
       "types: $(types_list)" \
       "e.g. feat(faf-usage-meter): muestra el modelo en uso"
   # Caracteres, no bytes: se descartan los bytes de continuación de UTF-8
-  length=$(printf '%s' "$1" | LC_ALL=C tr -d '\200-\277' | wc -c | tr -d ' ')
+  length=$(printf '%s' "${2:-$1}" | LC_ALL=C tr -d '\200-\277' | wc -c | tr -d ' ')
   [ "$length" -le "$MAX_SUBJECT" ] ||
     fail "the first line has $length characters; the limit is $MAX_SUBJECT" \
       "move the details to the body, after a blank line"
@@ -119,7 +120,7 @@ check_message() {
 
 check_title() {
   [ -n "$1" ] || fail "the PR title is empty"
-  check_subject "$1"
+  check_subject "$1" "$1$2"
 }
 
 check_body() {
@@ -138,7 +139,7 @@ case "${1:-}" in
       usage
     fi
     ;;
-  title) [ $# -eq 2 ] || usage; check_title "$2" ;;
+  title) [ $# -eq 2 ] || [ $# -eq 3 ] || usage; check_title "$2" "${3:-}" ;;
   body) [ $# -eq 2 ] || usage; check_body "$2" ;;
   *) usage ;;
 esac

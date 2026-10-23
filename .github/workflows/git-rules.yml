@@ -31,7 +31,7 @@ jobs:
           status=0
           sh .githooks/rules.sh branch "$BRANCH" || status=1
           # Al fusionar con squash, la primera línea del commit en main es el título más " (#N)": se comprueba así
-          sh .githooks/rules.sh title "$TITLE (#$PR_NUMBER)" ||
+          sh .githooks/rules.sh title "$TITLE" " (#$PR_NUMBER)" ||
             { echo "  (PR title, with the \" (#$PR_NUMBER)\" GitHub adds on squash)" >&2; status=1; }
           printf '%s\n' "$BODY" > "$RUNNER_TEMP/body"
           sh .githooks/rules.sh body "$RUNNER_TEMP/body" || { echo "  (PR description)" >&2; status=1; }
