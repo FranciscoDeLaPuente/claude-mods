@@ -5,6 +5,7 @@
 #   rules.sh message <archivo>        comprueba el mensaje que va a guardar git (hook commit-msg)
 #   rules.sh message --raw <archivo>  comprueba un mensaje ya guardado, tal cual
 #   rules.sh title <título>           comprueba el título de un PR: la primera línea del squash en main
+#   rules.sh body <archivo>           comprueba la descripción de un PR
 set -eu
 
 TYPES='feat|fix|docs|refactor|test|chore|ci'
@@ -18,7 +19,7 @@ fail() {
 }
 
 usage() {
-  fail "usage: rules.sh branch <name> | message [--raw] <file> | title <title>"
+  fail "usage: rules.sh branch <name> | message [--raw] <file> | title <title> | body <file>"
 }
 
 types_list() {
@@ -50,6 +51,15 @@ check_subject() {
       "move the details to the body, after a blank line"
 }
 
+# Ni commits ni PR llevan firma de Claude: un trailer …-by: con Claude o anthropic.com, o una línea que
+# empieza por "Generated with Claude Code" (con o sin 🤖 y enlace). Mencionarlo en una frase no es firmar.
+check_unsigned() {
+  signed=$(printf '%s\n' "$1" | grep -Ei '^[a-z-]+-by:.*(claude|anthropic\.com)|^[^a-z0-9]*generated with \[?claude code' | sed -n 1p)
+  [ -z "$signed" ] ||
+    fail "$2 is signed by Claude: $signed" \
+      "remove the Co-Authored-By and Generated with Claude Code lines"
+}
+
 check_message() {
   [ -r "$2" ] || fail "cannot read the message file: $2"
   if [ "$1" = raw ]; then
@@ -62,6 +72,7 @@ check_message() {
     # Vacío: git lo rechaza por su cuenta
     [ -n "$msg" ] || return 0
   fi
+  check_unsigned "$msg" "the commit message"
   subject=$(printf '%s\n' "$msg" | sed -n 1p)
   case "$subject" in
     # Mensajes que genera el propio git
@@ -78,6 +89,11 @@ check_title() {
   check_subject "$1"
 }
 
+check_body() {
+  [ -r "$1" ] || fail "cannot read the PR description file: $1"
+  check_unsigned "$(cat "$1")" "the PR description"
+}
+
 case "${1:-}" in
   branch) [ $# -eq 2 ] || usage; check_branch "$2" ;;
   message)
@@ -90,5 +106,6 @@ case "${1:-}" in
     fi
     ;;
   title) [ $# -eq 2 ] || usage; check_title "$2" ;;
+  body) [ $# -eq 2 ] || usage; check_body "$2" ;;
   *) usage ;;
 esac
