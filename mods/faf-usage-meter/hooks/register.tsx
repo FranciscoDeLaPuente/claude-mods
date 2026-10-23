@@ -94,13 +94,13 @@ export function modelName(id: string): string {
 }
 
 // El esfuerzo es un nivel ("high") o un presupuesto de tokens ("8k").
-export function effortLabel(effort: string | number | undefined): string | null {
-  if (effort === undefined) return null
+export function effortLabel(effort: string | number | null | undefined): string | null {
+  if (effort === undefined || effort === null) return null
   return typeof effort === 'number' ? tokens(effort) : effort
 }
 
 // Nivel de esfuerzo en 5 puntos: high → ●●●○○
-export function effortDots(effort: string | number | undefined): { full: string; empty: string } | null {
+export function effortDots(effort: string | number | null | undefined): { full: string; empty: string } | null {
   const i = typeof effort === 'string' ? EFFORT_LEVELS.indexOf(effort) : -1
   if (i < 0) return null
 
@@ -255,9 +255,11 @@ export const register: Register = on => {
   // Cada petición del bucle principal dice el modelo y el esfuerzo con que sale (tras /model, /effort o un fallback).
   on('turn.step', async function* ($, e, next) {
     if (e.agentId === undefined) {
+      // Una petición sin esfuerzo dice que el modelo no lo admite (null), no que aún no se sepa
+      const effort = e.effort ?? null
       const m = await read($, model)
-      if (m?.id !== e.model || m.effort !== e.effort) {
-        const value: Model = { id: e.model, effort: e.effort }
+      if (m?.id !== e.model || m.effort !== effort) {
+        const value: Model = { id: e.model, effort }
         await update($, model, () => value)
       }
     }
@@ -378,7 +380,8 @@ export const register: Register = on => {
               {dots && <Text color="inactive">{dots.empty}</Text>}
               <Text dimColor>
                 {dots ? ' ' : ''}
-                {effortLabel(mdl.effort) ?? 'not applicable to this model'}
+                {effortLabel(mdl.effort) ??
+                  (mdl.effort === null ? 'not applicable to this model' : 'known after the first response')}
               </Text>
             </Box>
           </Box>

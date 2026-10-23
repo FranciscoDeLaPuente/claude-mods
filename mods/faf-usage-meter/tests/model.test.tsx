@@ -20,9 +20,11 @@ test('model ids read as family and version', async () => {
   expect(effortLabel('high')).toBe('high')
   expect(effortLabel(8000)).toBe('8k')
   expect(effortLabel(undefined)).toBe(null)
+  expect(effortLabel(null)).toBe(null)
   expect(effortDots('high')).toEqual({ full: '●●●', empty: '○○' })
   expect(effortDots('max')).toEqual({ full: '●●●●●', empty: '' })
   expect(effortDots(8000)).toBe(null)
+  expect(effortDots(null)).toBe(null)
 })
 
 test('band and pane show the main loop model and its effort', async ($, on) => {
@@ -85,4 +87,37 @@ test('band and pane show the main loop model and its effort', async ($, on) => {
   })
   expect(await pane.find({ type: 'Text', text: /not applicable/ })).toBeDefined()
   await pane.unmount()
+})
+
+test('before the first response the pane does not call the effort unsupported', async ($, on) => {
+  mock.clock(on, { now: Date.parse('2026-10-15T10:00:00Z') })
+  on('command.register', ($, e) => ({ value: { command: e.name } }))
+  on('session.model', () => ({ value: 'claude-opus-5-5' }))
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('session.measure', ($, e) => ({ changed: e.changed }))
+  on('turn.step', async function* ($, e) {
+    return { turnId: e.turnId, index: e.index, answer: '', toolUses: [], stopReason: 'end_turn' as const, usage: null }
+  })
+  await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
+  await $.session.measure({
+    context: { tokens: 1000, window: 200_000, percent: 1 },
+    rateLimits: [],
+    changed: ['context'],
+  })
+
+  const mountPane = () =>
+    $.ui.mount({ plugin: 'faf-usage-meter', surface: 'terminal', component: 'Pane', requestId: 'faf-usage-meter', props: PANE_PROPS })
+  const before = await mountPane()
+  expect(await before.find({ type: 'Text', text: /Opus 5\.5/ })).toBeDefined()
+  expect(await before.find({ type: 'Text', text: /known after the first response/ })).toBeDefined()
+  expect(await before.find({ type: 'Text', text: /not applicable/ })).toBeUndefined()
+  await before.unmount()
+
+  // La primera petición sale sin esfuerzo: ahora sí se sabe que el modelo no lo admite
+  for await (const _ of $.turn.step({ turnId: 't', index: 0, model: 'claude-opus-5-5', messageCount: 1 })) {
+    // Sin trozos: solo cuenta el resultado.
+  }
+  const after = await mountPane()
+  expect(await after.find({ type: 'Text', text: /not applicable/ })).toBeDefined()
+  await after.unmount()
 })
