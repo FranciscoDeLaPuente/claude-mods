@@ -104,7 +104,7 @@ La carpeta `.claude-plugin/types` que genera Claude Code al desarrollar un mod e
 - Tipos: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci`. El ámbito es el mod o la zona (`install`), y es opcional.
 - El título de un PR sigue el mismo formato: al fusionar con squash, es la primera línea del commit que llega a `main`.
 
-Los hooks de `.githooks/` lo comprueban al hacer commit. Git no los activa solo: hay que hacerlo una vez en cada clon:
+Los hooks de `.githooks/` lo comprueban en cada commit y cada merge. Git no los activa solo: hay que hacerlo una vez en cada clon:
 
 ```bash
 git config core.hooksPath .githooks
