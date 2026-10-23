@@ -14,6 +14,8 @@ Un mod es un plugin que cambia la interfaz o el comportamiento de Claude Code: p
 
 ```
 claude-mods/
+├── .githooks/         hooks de git con las reglas de ramas y commits
+├── .github/workflows/ comprobación de esas reglas en cada PR
 ├── install/
 │   ├── install.sh     instalador para Linux, macOS, WSL y Git Bash
 │   ├── install.ps1    instalador para PowerShell (Windows; también pwsh en Linux/macOS)
@@ -94,6 +96,21 @@ Cada script le pasa al otro la parte del otro sistema: `install.sh` usa `powersh
 3. Ejecuta el instalador.
 
 La carpeta `.claude-plugin/types` que genera Claude Code al desarrollar un mod está en `.gitignore`: no se sube y se regenera sola.
+
+## Ramas y commits
+
+- Nada de commits en `main`: cada cambio va en una rama `tipo/descripcion` (`feat/faf-usage-meter-model`) y llega a `main` por merge o PR.
+- Mensajes en [Conventional Commits](https://www.conventionalcommits.org/es/), en español: `tipo(ámbito): descripción`, con la primera línea de 72 caracteres como máximo. Ejemplo: `fix(install): respeta CLAUDE_CONFIG_DIR en WSL`.
+- Tipos: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci`. El ámbito es el mod o la zona (`install`), y es opcional.
+- El título de un PR sigue el mismo formato.
+
+Los hooks de `.githooks/` lo comprueban al hacer commit. Git no los activa solo: hay que hacerlo una vez en cada clon:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+En cada PR, el workflow `Git rules` comprueba la rama, el título y todos los commits, aunque quien los hizo no tuviera los hooks activados.
 
 ## Notas
 
