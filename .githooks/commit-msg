@@ -1,0 +1,4 @@
+#!/bin/sh
+# El mensaje sigue Conventional Commits, en español (ver CLAUDE.md).
+
+exec sh "$(dirname "$0")/rules.sh" message "$1"

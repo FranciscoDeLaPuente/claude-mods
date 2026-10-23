@@ -1,0 +1,4 @@
+#!/bin/sh
+# Un git merge sin conflictos no pasa por pre-commit: las mismas comprobaciones de rama.
+
+exec sh "$(dirname "$0")/pre-commit"
