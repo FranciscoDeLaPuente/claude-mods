@@ -21,6 +21,7 @@ jobs:
         env:
           BRANCH: ${{ github.head_ref }}
           TITLE: ${{ github.event.pull_request.title }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           BODY: ${{ github.event.pull_request.body }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -29,8 +30,9 @@ jobs:
         run: |
           status=0
           sh .githooks/rules.sh branch "$BRANCH" || status=1
-          # Al fusionar con squash, el título del PR es la primera línea del commit que llega a main
-          sh .githooks/rules.sh title "$TITLE" || { echo "  (PR title)" >&2; status=1; }
+          # Al fusionar con squash, la primera línea del commit en main es el título más " (#N)": se comprueba así
+          sh .githooks/rules.sh title "$TITLE" " (#$PR_NUMBER)" ||
+            { echo "  (PR title, with the \" (#$PR_NUMBER)\" GitHub adds on squash)" >&2; status=1; }
           printf '%s\n' "$BODY" > "$RUNNER_TEMP/body"
           sh .githooks/rules.sh body "$RUNNER_TEMP/body" || { echo "  (PR description)" >&2; status=1; }
           for sha in $(git rev-list --reverse "$BASE_SHA..$HEAD_SHA"); do

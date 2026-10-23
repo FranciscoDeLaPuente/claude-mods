@@ -26,6 +26,13 @@ export type Monthly = {
   fetchedAt: number
 }
 
+// Modelo con que sale la última petición del bucle principal y su esfuerzo (nivel o presupuesto de
+// tokens): null si el modelo no lo admite, ausente mientras no ha salido ninguna petición.
+export type Model = {
+  id: string
+  effort?: string | number | null
+}
+
 declare module 'claude-code' {
   interface PluginState {
     'faf-usage-meter': {
@@ -33,6 +40,7 @@ declare module 'claude-code' {
       breakdown: Breakdown | null
       isBandHidden: boolean
       monthly: Monthly | null
+      model: Model | null
     }
   }
 }
