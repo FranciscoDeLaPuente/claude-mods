@@ -67,8 +67,20 @@ check_message() {
     msg=$(cat "$2")
     [ -n "$msg" ] || fail "the commit message is empty"
   else
-    # Sin comentarios ni el diff de commit -v, como los quitará git al guardar el mensaje
-    msg=$(sed '/^# -\{24\} >8 -\{24\}$/,$d' "$2" | git stripspace --strip-comments)
+    # El mensaje como lo guardará git. Con editor (commit sin -m ni -F) quita los comentarios; sin él
+    # (git exporta GIT_EDITOR=: al hook) los conserva; commit.cleanup cambia ese modo por defecto.
+    # Un --cleanup en la línea de comandos no llega al hook: lo cubre la comprobación en CI.
+    mode=$(git config --get commit.cleanup || echo default)
+    if [ "$mode" = default ]; then
+      if [ "${GIT_EDITOR:-}" = : ]; then mode=whitespace; else mode=strip; fi
+    fi
+    # Con commit -v, git corta en la línea de tijeras: debajo va el diff
+    text=$(sed '/^# -\{24\} >8 -\{24\}$/,$d' "$2")
+    case "$mode" in
+      verbatim) msg=$text ;;
+      whitespace) msg=$(printf '%s\n' "$text" | git stripspace) ;;
+      *) msg=$(printf '%s\n' "$text" | git stripspace --strip-comments) ;;
+    esac
     # Vacío: git lo rechaza por su cuenta
     [ -n "$msg" ] || return 0
   fi
