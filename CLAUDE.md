@@ -47,13 +47,13 @@ La sesión de Claude Code carga la copia instalada en `~/.claude/mods/<mod>`, no
 
 ## Ramas y commits
 
-- Nunca hagas commit en `main`. Cada cambio va en una rama `tipo/descripcion`, con la descripción en kebab-case (`feat/faf-usage-meter-model`), y llega a `main` por merge o PR.
+- Nunca hagas commit en `main`. Cada cambio va en una rama `tipo/descripcion`, con la descripción en kebab-case (`feat/faf-usage-meter-model`), y llega a `main` solo por PR, fusionado con squash.
 - Tipos, para ramas y commits: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci`.
 - Mensajes en Conventional Commits, en español y en presente: `tipo(ámbito): descripción`, con la primera línea de 72 caracteres como máximo.
   - El ámbito es el mod (`faf-usage-meter`) o la zona (`install`). Se omite si el cambio afecta a todo el repositorio (`docs: añade CLAUDE.md`).
   - `!` antes de `:` marca un cambio incompatible (`feat(install)!: …`).
   - El cuerpo, si lo hay, va tras una línea en blanco.
   - Se aceptan los mensajes que genera git: `Merge …`, `Revert "…"`, `fixup! …`.
-- El título de un PR sigue el mismo formato: con squash merge, es el mensaje del commit que llega a `main`.
+- El título de un PR sigue el mismo formato: al fusionar con squash, es la primera línea del commit que llega a `main`.
 - Lo comprueban `.githooks/pre-commit` y `.githooks/commit-msg` en cada commit, y `.github/workflows/git-rules.yml` en cada PR (rama, título y cada commit). La lógica está solo en `.githooks/rules.sh`. Si cambian las reglas, hay que cambiar ese script, esta sección y el README. Para probarlas a mano: `sh .githooks/rules.sh branch <rama>` y `sh .githooks/rules.sh message <archivo>`.
 - Los hooks se activan una vez por clon con `git config core.hooksPath .githooks`. Antes de hacer commit, si `git config core.hooksPath` no devuelve `.githooks`, avisa al usuario. No uses `--no-verify`.

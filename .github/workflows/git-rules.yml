@@ -26,7 +26,7 @@ jobs:
         run: |
           status=0
           sh .githooks/rules.sh branch "$BRANCH" || status=1
-          # Con squash merge, el título del PR es el mensaje del commit que llega a main
+          # Al fusionar con squash, el título del PR es la primera línea del commit que llega a main
           printf '%s\n' "$TITLE" > "$RUNNER_TEMP/title"
           sh .githooks/rules.sh message "$RUNNER_TEMP/title" || { echo "  (PR title)" >&2; status=1; }
           for sha in $(git rev-list --reverse "$BASE_SHA..$HEAD_SHA"); do

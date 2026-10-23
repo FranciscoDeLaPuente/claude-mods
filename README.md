@@ -99,10 +99,10 @@ La carpeta `.claude-plugin/types` que genera Claude Code al desarrollar un mod e
 
 ## Ramas y commits
 
-- Nada de commits en `main`: cada cambio va en una rama `tipo/descripcion` (`feat/faf-usage-meter-model`) y llega a `main` por merge o PR.
+- Nada de commits en `main`: cada cambio va en una rama `tipo/descripcion` (`feat/faf-usage-meter-model`) y llega a `main` solo por PR, fusionado con squash.
 - Mensajes en [Conventional Commits](https://www.conventionalcommits.org/es/), en español: `tipo(ámbito): descripción`, con la primera línea de 72 caracteres como máximo. Ejemplo: `fix(install): respeta CLAUDE_CONFIG_DIR en WSL`.
 - Tipos: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci`. El ámbito es el mod o la zona (`install`), y es opcional.
-- El título de un PR sigue el mismo formato.
+- El título de un PR sigue el mismo formato: al fusionar con squash, es la primera línea del commit que llega a `main`.
 
 Los hooks de `.githooks/` lo comprueban al hacer commit. Git no los activa solo: hay que hacerlo una vez en cada clon:
 
