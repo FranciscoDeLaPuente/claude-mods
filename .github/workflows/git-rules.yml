@@ -24,6 +24,8 @@ jobs:
           BODY: ${{ github.event.pull_request.body }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          # La firma de Claude se rechaza solo en los PR del propietario; los demás firman como quieran
+          REJECT_CLAUDE_SIGNATURE: ${{ github.event.pull_request.user.login == github.repository_owner }}
         run: |
           status=0
           sh .githooks/rules.sh branch "$BRANCH" || status=1

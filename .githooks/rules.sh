@@ -6,6 +6,8 @@
 #   rules.sh message --raw <archivo>  comprueba un mensaje ya guardado, tal cual
 #   rules.sh title <título>           comprueba el título de un PR: la primera línea del squash en main
 #   rules.sh body <archivo>           comprueba la descripción de un PR
+# La firma de Claude solo se rechaza a quien lo pide: git config claude-mods.rejectClaudeSignature true
+# en su clon, o REJECT_CLAUDE_SIGNATURE=true (el workflow, en los PR del propietario del repositorio).
 set -eu
 
 TYPES='feat|fix|docs|refactor|test|chore|ci'
@@ -51,9 +53,19 @@ check_subject() {
       "move the details to the body, after a blank line"
 }
 
-# Ni commits ni PR llevan firma de Claude: un trailer …-by: con Claude o anthropic.com, o una línea que
-# empieza por "Generated with Claude Code" (con o sin 🤖 y enlace). Mencionarlo en una frase no es firmar.
+# REJECT_CLAUDE_SIGNATURE (true o false) manda sobre la configuración del clon
+rejects_signature() {
+  case "${REJECT_CLAUDE_SIGNATURE:-}" in
+    true) return 0 ;;
+    false) return 1 ;;
+  esac
+  [ "$(git config --bool --get claude-mods.rejectClaudeSignature 2>/dev/null)" = true ]
+}
+
+# Firma de Claude: un trailer …-by: con Claude o anthropic.com, o una línea que empieza por
+# "Generated with Claude Code" (con o sin 🤖 y enlace). Mencionarlo en una frase no es firmar.
 check_unsigned() {
+  rejects_signature || return 0
   signed=$(printf '%s\n' "$1" | grep -Ei '^[a-z-]+-by:.*(claude|anthropic\.com)|^[^a-z0-9]*generated with \[?claude code' | sed -n 1p)
   [ -z "$signed" ] ||
     fail "$2 is signed by Claude: $signed" \

@@ -103,7 +103,7 @@ La carpeta `.claude-plugin/types` que genera Claude Code al desarrollar un mod e
 - Mensajes en [Conventional Commits](https://www.conventionalcommits.org/es/), en español: `tipo(ámbito): descripción`, con la primera línea de 72 caracteres como máximo. Ejemplo: `fix(install): respeta CLAUDE_CONFIG_DIR en WSL`.
 - Tipos: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci`. El ámbito es el mod o la zona (`install`), y es opcional.
 - El título de un PR sigue el mismo formato: al fusionar con squash, es la primera línea del commit que llega a `main`.
-- Ni los commits ni los PR llevan firma de Claude (`Co-Authored-By: Claude …`, `Generated with Claude Code`).
+- La firma de Claude (`Co-Authored-By: Claude …`, `Generated with Claude Code`) es libre. Si no la quieres en tus commits, haz que el hook la rechace en tu clon: `git config claude-mods.rejectClaudeSignature true`.
 
 Los hooks de `.githooks/` lo comprueban en cada commit y cada merge. Git no los activa solo: hay que hacerlo una vez en cada clon:
 
@@ -111,7 +111,7 @@ Los hooks de `.githooks/` lo comprueban en cada commit y cada merge. Git no los 
 git config core.hooksPath .githooks
 ```
 
-En cada PR, el workflow `Git rules` comprueba la rama, el título, la descripción y todos los commits, aunque quien los hizo no tuviera los hooks activados.
+En cada PR, el workflow `Git rules` comprueba la rama, el título y todos los commits, aunque quien los hizo no tuviera los hooks activados. En los PR del propietario del repositorio comprueba además que ni los commits ni la descripción lleven firma de Claude.
 
 ## Notas
 
