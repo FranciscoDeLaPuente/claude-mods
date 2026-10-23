@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { Breakdown, Limit, Monthly, Snapshot } from '../types'
+import type { Breakdown, Limit, Model, Monthly, Snapshot } from '../types'
 
 const PANE = 'faf-usage-meter'
 const TITLE = 'Claude usage'
@@ -10,6 +10,7 @@ const snap = atom({ plugin: 'faf-usage-meter', key: 'snap' } as const, null)
 const breakdown = atom({ plugin: 'faf-usage-meter', key: 'breakdown' } as const, null)
 const isBandHidden = atom({ plugin: 'faf-usage-meter', key: 'isBandHidden' } as const, false)
 const monthly = atom({ plugin: 'faf-usage-meter', key: 'monthly' } as const, null)
+const model = atom({ plugin: 'faf-usage-meter', key: 'model' } as const, null)
 
 // Endpoint que usa /usage: gasto de extra usage de la cuenta, común a todos los equipos.
 const USAGE_URL = 'https://api.anthropic.com/api/oauth/usage'
@@ -24,6 +25,8 @@ const LIMIT_NAMES: Record<string, string> = {
 }
 
 const EIGHTHS = ['', '▏', '▎', '▍', '▌', '▋', '▊', '▉']
+
+const EFFORT_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max']
 
 // Barra de `width` celdas con resolución de 1/8 de celda.
 export function bar(percent: number, width: number): { full: string; empty: string } {
@@ -78,6 +81,30 @@ function resetClock(resetsAt: string | undefined): string | null {
   const mm = String(date.getMinutes()).padStart(2, '0')
 
   return `${days[date.getDay()]} ${hh}:${mm}`
+}
+
+// "claude-opus-5-5" → "Opus 5.5", "claude-sonnet-4-5-20250929[1m]" → "Sonnet 4.5 1M"; lo demás, tal cual.
+export function modelName(id: string): string {
+  const m = /^(?:claude-)?(fable|opus|sonnet|haiku)-(\d+)(?:-(\d{1,2}))?(?:-\d{8})?(\[1m\])?$/i.exec(id.trim())
+  if (!m || !m[1] || !m[2]) return id
+  const family = m[1][0]!.toUpperCase() + m[1].slice(1).toLowerCase()
+  const version = m[3] ? `${m[2]}.${m[3]}` : m[2]
+
+  return `${family} ${version}${m[4] ? ' 1M' : ''}`
+}
+
+// El esfuerzo es un nivel ("high") o un presupuesto de tokens ("8k").
+export function effortLabel(effort: string | number | undefined): string | null {
+  if (effort === undefined) return null
+  return typeof effort === 'number' ? tokens(effort) : effort
+}
+
+// Nivel de esfuerzo en 5 puntos: high → ●●●○○
+export function effortDots(effort: string | number | undefined): { full: string; empty: string } | null {
+  const i = typeof effort === 'string' ? EFFORT_LEVELS.indexOf(effort) : -1
+  if (i < 0) return null
+
+  return { full: '●'.repeat(i + 1), empty: '○'.repeat(EFFORT_LEVELS.length - i - 1) }
 }
 
 const CURRENCY_SYMBOLS: Record<string, string> = { EUR: '€', USD: '$', GBP: '£' }
@@ -203,6 +230,12 @@ export const register: Register = on => {
       // Se rellenará con la primera medición.
     }
     await refreshMonthly($, true)
+    try {
+      const id = await $.session.model()
+      await update($, model, m => ({ id, effort: m?.effort }))
+    } catch {
+      // La primera petición dirá el modelo.
+    }
 
     return ran
   })
@@ -217,6 +250,19 @@ export const register: Register = on => {
     }
 
     return next(e)
+  })
+
+  // Cada petición del bucle principal dice el modelo y el esfuerzo con que sale (tras /model, /effort o un fallback).
+  on('turn.step', async function* ($, e, next) {
+    if (e.agentId === undefined) {
+      const m = await read($, model)
+      if (m?.id !== e.model || m.effort !== e.effort) {
+        const value: Model = { id: e.model, effort: e.effort }
+        await update($, model, () => value)
+      }
+    }
+
+    return yield* next(e)
   })
 
   on('command.run', { command: 'faf-usage' }, async $ => {
@@ -239,6 +285,7 @@ export const register: Register = on => {
     const hint = await next(e)
     const s = await read($, snap)
     const mo = await read($, monthly)
+    const mdl = await read($, model)
     if (s === null || (await read($, isBandHidden))) {
       return hint
     }
@@ -254,6 +301,12 @@ export const register: Register = on => {
       <Box flexDirection="column" rowGap={1}>
         {hint}
         <Box flexDirection="row" flexWrap="wrap" columnGap={2}>
+          {mdl && (
+            <Box flexDirection="row">
+              <Text>{modelName(mdl.id)}</Text>
+              {effortLabel(mdl.effort) && <Text dimColor> · {effortLabel(mdl.effort)}</Text>}
+            </Box>
+          )}
           <Box flexDirection="row">
             <Text dimColor>ctx </Text>
             <Text color={levelColor(pct)}>{ctx.full}</Text>
@@ -295,6 +348,7 @@ export const register: Register = on => {
     const s = await read($, snap)
     const bd = await read($, breakdown)
     const mo = await read($, monthly)
+    const mdl = await read($, model)
     const now = await $.clock.now()
     const columns = e.viewport?.columns ?? 60
     const width = Math.max(10, Math.min(40, columns - 30))
@@ -307,9 +361,29 @@ export const register: Register = on => {
     const ctx = bar(pct, width)
     const stackMax = bd?.maxTokens ?? s.window
     const used = bd?.categories.filter(c => c.kind === 'used' && c.tokens > 0) ?? []
+    const dots = effortDots(mdl?.effort)
 
     return (
       <Box flexDirection="column" rowGap={1}>
+        {mdl && (
+          <Box flexDirection="column">
+            <Text weight="bold">Model</Text>
+            <Text>
+              {modelName(mdl.id)}
+              {modelName(mdl.id) !== mdl.id && <Text dimColor> ({mdl.id})</Text>}
+            </Text>
+            <Box flexDirection="row">
+              <Text>{'Effort'.padEnd(12)}</Text>
+              {dots && <Text>{dots.full}</Text>}
+              {dots && <Text color="inactive">{dots.empty}</Text>}
+              <Text dimColor>
+                {dots ? ' ' : ''}
+                {effortLabel(mdl.effort) ?? 'not applicable to this model'}
+              </Text>
+            </Box>
+          </Box>
+        )}
+
         <Box flexDirection="column">
           <Text weight="bold">Context</Text>
           <Box flexDirection="row">

@@ -8,7 +8,7 @@ Un mod es un plugin que cambia la interfaz o el comportamiento de Claude Code: p
 
 | Mod | Qué hace | Comandos |
 |---|---|---|
-| [`faf-usage-meter`](mods/faf-usage-meter) | Muestra bajo el prompt la ocupación del contexto y la cuota usada (5 h y 7 días) con sus límites, y el gasto del mes. | `/faf-usage` abre el panel con el desglose · `/faf-usage-band` muestra u oculta la barra |
+| [`faf-usage-meter`](mods/faf-usage-meter) | Muestra bajo el prompt el modelo en uso y su nivel de esfuerzo, la ocupación del contexto y la cuota usada (5 h y 7 días) con sus límites, y el gasto del mes. | `/faf-usage` abre el panel con el desglose · `/faf-usage-band` muestra u oculta la barra |
 
 ## Estructura
 
