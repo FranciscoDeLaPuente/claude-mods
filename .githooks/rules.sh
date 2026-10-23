@@ -66,7 +66,7 @@ rejects_signature() {
 # "Generated with Claude Code" (con o sin 🤖 y enlace). Mencionarlo en una frase no es firmar.
 check_unsigned() {
   rejects_signature || return 0
-  signed=$(printf '%s\n' "$1" | grep -Ei '^[a-z-]+-by:.*(claude|anthropic\.com)|^[^a-z0-9]*generated with \[?claude code' | sed -n 1p)
+  signed=$(printf '%s\n' "$1" | grep -Ei '^[a-z-]+-by[[:blank:]]*:.*(claude|anthropic\.com)|^[^a-z0-9]*generated with \[?claude code' | sed -n 1p)
   [ -z "$signed" ] ||
     fail "$2 is signed by Claude: $signed" \
       "remove the Co-Authored-By and Generated with Claude Code lines"
@@ -83,11 +83,20 @@ check_message() {
     # (git exporta GIT_EDITOR=: al hook) los conserva; commit.cleanup cambia ese modo por defecto.
     # Un --cleanup en la línea de comandos no llega al hook: lo cubre la comprobación en CI.
     mode=$(git config --get commit.cleanup || echo default)
-    if [ "$mode" = default ]; then
-      if [ "${GIT_EDITOR:-}" = : ]; then mode=whitespace; else mode=strip; fi
+    if [ "${GIT_EDITOR:-}" = : ]; then
+      # Sin editor, scissors es whitespace, como el modo por defecto
+      case "$mode" in default | scissors) mode=whitespace ;; esac
+    elif [ "$mode" = default ]; then
+      mode=strip
     fi
-    # Con commit -v, git corta en la línea de tijeras: debajo va el diff
-    text=$(sed '/^# -\{24\} >8 -\{24\}$/,$d' "$2")
+    # git corta en la línea de tijeras con commit -v o commit.verbose (debajo va el diff, que solo
+    # llega al archivo si se abre el editor) y con cleanup=scissors, que exige editor; sin editor ni
+    # commit.verbose es una línea más. Un -v sin editor no llega al hook: el hook es más estricto que git.
+    if [ "${GIT_EDITOR:-}" != : ] || [ "$(git config --bool --get commit.verbose 2>/dev/null)" = true ]; then
+      text=$(sed '/^# -\{24\} >8 -\{24\}$/,$d' "$2")
+    else
+      text=$(cat "$2")
+    fi
     case "$mode" in
       verbatim) msg=$text ;;
       whitespace) msg=$(printf '%s\n' "$text" | git stripspace) ;;
